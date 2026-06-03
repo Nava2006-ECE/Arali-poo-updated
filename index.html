@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1D9E75">
+  <meta name="description" content="அரளி பூ Daily Tracker">
+  <title>அரளி பூ Tracker</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --green: #1D9E75; --green-dark: #0F6E56; --green-light: #EAF7F2;
+      --purple: #8B5CF6; --purple-light: #F5F0FF; --purple-border: #DDD6FE;
+      --yellow: #F59E0B; --yellow-light: #FFFBEB; --yellow-border: #FDE68A;
+      --red: #DC2626; --red-light: #FEF2F2;
+      --bg: #F4F6F8; --card: #FFFFFF; --border: #E5E7EB;
+      --text: #111827; --text2: #6B7280; --text3: #9CA3AF;
+      --radius: 14px; --radius-sm: 9px;
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+    .app { max-width: 480px; margin: 0 auto; padding-bottom: 80px; }
+
+    /* Header */
+    .header { background: var(--green); color: white; padding: 18px 20px 16px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+    .header-row { display: flex; align-items: center; gap: 10px; }
+    .header-title { font-size: 19px; font-weight: 700; }
+    .header-sub { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+
+    /* Bottom nav */
+    .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; background: white; border-top: 1px solid var(--border); display: flex; z-index: 100; box-shadow: 0 -2px 8px rgba(0,0,0,0.06); }
+    .nav-btn { flex: 1; padding: 10px 4px 8px; border: none; background: transparent; cursor: pointer; font-family: var(--font); display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--text3); font-size: 11px; }
+    .nav-btn svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .nav-btn.active { color: var(--green); }
+
+    /* Pages */
+    .page { display: none; padding: 14px 14px 0; }
+    .page.active { display: block; }
+
+    /* Cards */
+    .card { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+    .card-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; gap: 7px; }
+
+    /* Form */
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    label { font-size: 12px; color: var(--text2); font-weight: 500; }
+    input[type=number], input[type=date], select {
+      width: 100%; padding: 10px 12px; border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm); font-size: 14px; font-family: var(--font);
+      background: white; color: var(--text); outline: none; transition: border-color 0.15s;
+    }
+    input:focus, select:focus { border-color: var(--green); }
+
+    /* Type section headers */
+    .type-header { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; margin-bottom: 8px; margin-top: 4px; padding: 6px 10px; border-radius: var(--radius-sm); }
+    .type-header.hybrid { background: var(--purple-light); color: #5B21B6; }
+    .type-header.normal { background: var(--yellow-light); color: #92400E; }
+
+    /* Totals */
+    .total-row { display: flex; gap: 8px; margin: 10px 0; }
+    .mini-total { flex: 1; border-radius: var(--radius-sm); padding: 10px 12px; }
+    .mini-total.hybrid { background: var(--purple-light); border: 1px solid var(--purple-border); }
+    .mini-total.normal { background: var(--yellow-light); border: 1px solid var(--yellow-border); }
+    .mini-label { font-size: 11px; color: var(--text2); margin-bottom: 2px; }
+    .mini-val { font-size: 17px; font-weight: 700; }
+    .mini-total.hybrid .mini-val { color: #5B21B6; }
+    .mini-total.normal .mini-val { color: #92400E; }
+
+    .summary-box { background: var(--green-light); border-radius: var(--radius-sm); padding: 12px 14px; margin: 8px 0 12px; border: 1px solid #A7F3D0; }
+    .summary-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .summary-row:last-child { margin-bottom: 0; }
+    .summary-label { font-size: 12px; color: var(--text2); }
+    .summary-val { font-size: 14px; font-weight: 600; color: var(--text); }
+    .net-row { display: flex; justify-content: space-between; align-items: center; padding-top: 8px; margin-top: 4px; border-top: 1px dashed #6EE7B7; }
+    .net-label { font-size: 14px; font-weight: 600; color: var(--green-dark); }
+    .net-val { font-size: 22px; font-weight: 700; color: var(--green); }
+
+    /* Buttons */
+    .btn { width: 100%; padding: 12px; border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; cursor: pointer; font-family: var(--font); display: flex; align-items: center; justify-content: center; gap: 7px; transition: background 0.15s; }
+    .btn-green { background: var(--green); color: white; }
+    .btn-green:hover { background: var(--green-dark); }
+    .btn-outline { background: white; color: var(--green); border: 1.5px solid var(--green); margin-top: 8px; }
+    .btn-pdf { background: #DC2626; color: white; }
+    .btn-pdf:hover { background: #B91C1C; }
+
+    /* Entry list */
+    .entry-item { background: #FAFAFA; border-radius: var(--radius-sm); padding: 12px; margin-bottom: 8px; border: 1px solid var(--border); }
+    .entry-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .entry-date { font-size: 13px; font-weight: 600; color: var(--text); }
+    .entry-del { background: none; border: none; cursor: pointer; color: var(--text3); font-size: 18px; padding: 0; }
+    .pill-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+    .pill { font-size: 11px; padding: 3px 9px; border-radius: 20px; font-weight: 500; }
+    .pill-h { background: var(--purple-light); color: #5B21B6; border: 1px solid var(--purple-border); }
+    .pill-n { background: var(--yellow-light); color: #92400E; border: 1px solid var(--yellow-border); }
+    .entry-net { font-size: 13px; font-weight: 700; color: var(--green); }
+    .entry-gross { font-size: 11px; color: var(--text2); }
+
+    /* Analytics */
+    .month-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+    .month-bar select { flex: 1; }
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .stat-card { background: var(--card); border-radius: var(--radius-sm); padding: 12px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+    .stat-label { font-size: 11px; color: var(--text2); margin-bottom: 3px; }
+    .stat-val { font-size: 20px; font-weight: 700; color: var(--text); }
+    .stat-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+    /* Chart */
+    .legend { display: flex; gap: 14px; margin-bottom: 10px; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text2); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .chart-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+    .chart-day { font-size: 11px; color: var(--text2); width: 24px; text-align: right; flex-shrink: 0; }
+    .chart-bars { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .bar-track { background: #F0F0F0; border-radius: 3px; height: 10px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 3px; }
+    .bar-h { background: var(--purple); }
+    .bar-n { background: var(--yellow); }
+    .chart-val { font-size: 11px; color: var(--text2); width: 50px; text-align: right; flex-shrink: 0; }
+
+    /* PDF page */
+    .pdf-month-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+    .pdf-month-bar select { flex: 1; }
+    .pdf-preview { background: white; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow); }
+    .pdf-preview-title { font-size: 14px; font-weight: 600; margin-bottom: 10px; color: var(--text); }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { background: var(--green); color: white; padding: 7px 6px; text-align: left; font-size: 11px; }
+    td { padding: 7px 6px; border-bottom: 1px solid var(--border); color: var(--text); }
+    tr:nth-child(even) td { background: #F9FAFB; }
+    .tfoot-row td { background: var(--green-light); font-weight: 600; font-size: 12px; border-top: 2px solid var(--green); }
+    .commission-note { font-size: 11px; color: var(--text2); margin: 8px 0 0; text-align: right; }
+
+    .empty { text-align: center; color: var(--text3); font-size: 13px; padding: 24px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="header-row">
+      <span style="font-size:26px;">🌸</span>
+      <div>
+        <div class="header-title">அரளி பூ Tracker</div>
+        <div class="header-sub">Hybrid & Normal · Daily record</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DAILY ENTRY -->
+  <div class="page active" id="page-daily">
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:var(--green);fill:none;stroke-width:2.5;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        இன்றைய Entry
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>தேதி</label>
+        <input type="date" id="entry-date">
+      </div>
+
+      <div class="type-header hybrid">🟣 Hybrid பூ</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>எடை (kg)</label>
+          <input type="number" id="h-weight" placeholder="0.0" step="0.1" min="0" oninput="calcTotals()">
+        </div>
+        <div class="form-group">
+          <label>Rate (₹/kg)</label>
+          <input type="number" id="h-rate" placeholder="0" min="0" oninput="calcTotals()">
+        </div>
+      </div>
+
+      <div class="type-header normal" style="margin-top:8px;">🟡 Normal பூ</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>எடை (kg)</label>
+          <input type="number" id="n-weight" placeholder="0.0" step="0.1" min="0" oninput="calcTotals()">
+        </div>
+        <div class="form-group">
+          <label>Rate (₹/kg)</label>
+          <input type="number" id="n-rate" placeholder="0" min="0" oninput="calcTotals()">
+        </div>
+      </div>
+
+      <div class="total-row">
+        <div class="mini-total hybrid">
+          <div class="mini-label">Hybrid total</div>
+          <div class="mini-val" id="h-total">₹0</div>
+        </div>
+        <div class="mini-total normal">
+          <div class="mini-label">Normal total</div>
+          <div class="mini-val" id="n-total">₹0</div>
+        </div>
+      </div>
+
+      <div class="summary-box">
+        <div class="summary-row">
+          <span class="summary-label">Gross Total</span>
+          <span class="summary-val" id="gross-total">₹0.00</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Commission (10%)</span>
+          <span class="summary-val" style="color:#DC2626;" id="commission">- ₹0.00</span>
+        </div>
+        <div class="net-row">
+          <span class="net-label">Net Amount</span>
+          <span class="net-val" id="net-total">₹0.00</span>
+        </div>
+      </div>
+
+      <button class="btn btn-green" onclick="saveEntry()">
+        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:white;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save பண்ணு
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:var(--green);fill:none;stroke-width:2;"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        Recent Entries
+      </div>
+      <div id="entries-list"><div class="empty">இன்னும் entry இல்ல!</div></div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS -->
+  <div class="page" id="page-analytics">
+    <div class="month-bar">
+      <label style="font-size:13px;color:var(--text2);flex-shrink:0;">மாதம்:</label>
+      <select id="month-sel" onchange="renderAnalytics()"></select>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-label">Net வருமானம்</div>
+        <div class="stat-val" id="s-net">₹0</div>
+        <div class="stat-sub" id="s-gross-sub">Gross: ₹0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Commission கழிச்சது</div>
+        <div class="stat-val" style="color:#DC2626;" id="s-comm">₹0</div>
+        <div class="stat-sub">10% market fee</div>
+      </div>
+      <div class="stat-card" style="background:var(--purple-light);border-color:var(--purple-border);">
+        <div class="stat-label">🟣 Hybrid</div>
+        <div class="stat-val" style="color:#5B21B6;" id="s-hybrid">₹0</div>
+        <div class="stat-sub" id="s-hybrid-kg">0 kg</div>
+      </div>
+      <div class="stat-card" style="background:var(--yellow-light);border-color:var(--yellow-border);">
+        <div class="stat-label">🟡 Normal</div>
+        <div class="stat-val" style="color:#92400E;" id="s-normal">₹0</div>
+        <div class="stat-sub" id="s-normal-kg">0 kg</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:var(--green);fill:none;stroke-width:2;"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Daily Breakdown
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--purple);"></div>Hybrid</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--yellow);"></div>Normal</div>
+      </div>
+      <div id="chart-area"><div class="empty">இந்த மாதம் entry இல்ல.</div></div>
+    </div>
+  </div>
+
+  <!-- PDF DOWNLOAD -->
+  <div class="page" id="page-pdf">
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:#DC2626;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        PDF Download
+      </div>
+      <div class="pdf-month-bar">
+        <label style="font-size:13px;color:var(--text2);flex-shrink:0;">மாதம்:</label>
+        <select id="pdf-month-sel" onchange="renderPdfPreview()"></select>
+      </div>
+      <div id="pdf-preview-area"></div>
+      <button class="btn btn-pdf" onclick="downloadPdf()">
+        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:white;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        PDF Download பண்ணு
+      </button>
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" onclick="showPage('daily',this)">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span>Entry</span>
+    </button>
+    <button class="nav-btn" onclick="showPage('analytics',this)">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span>Analytics</span>
+    </button>
+    <button class="nav-btn" onclick="showPage('pdf',this)">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <span>PDF</span>
+    </button>
+  </nav>
+</div>
+
+<script>
+const COMM = 0.10;
+let entries = JSON.parse(localStorage.getItem('arali_v3') || '[]');
+function persist() { localStorage.setItem('arali_v3', JSON.stringify(entries)); }
+
+document.getElementById('entry-date').value = new Date().toISOString().split('T')[0];
+
+function calcTotals() {
+  const hw = parseFloat(document.getElementById('h-weight').value)||0;
+  const hr = parseFloat(document.getElementById('h-rate').value)||0;
+  const nw = parseFloat(document.getElementById('n-weight').value)||0;
+  const nr = parseFloat(document.getElementById('n-rate').value)||0;
+  const ht = hw*hr, nt = nw*nr, gross = ht+nt;
+  const comm = gross*COMM, net = gross-comm;
+  document.getElementById('h-total').textContent = '₹'+ht.toFixed(0);
+  document.getElementById('n-total').textContent = '₹'+nt.toFixed(0);
+  document.getElementById('gross-total').textContent = '₹'+gross.toFixed(2);
+  document.getElementById('commission').textContent = '- ₹'+comm.toFixed(2);
+  document.getElementById('net-total').textContent = '₹'+net.toFixed(2);
+}
+
+function saveEntry() {
+  const date = document.getElementById('entry-date').value;
+  const hw = parseFloat(document.getElementById('h-weight').value)||0;
+  const hr = parseFloat(document.getElementById('h-rate').value)||0;
+  const nw = parseFloat(document.getElementById('n-weight').value)||0;
+  const nr = parseFloat(document.getElementById('n-rate').value)||0;
+  if (!date) { alert('தேதி போடுங்க!'); return; }
+  if (!hw && !nw) { alert('குறைந்தது ஒரு பூவோட எடை போடுங்க!'); return; }
+  const gross = +(hw*hr + nw*nr).toFixed(2);
+  const comm = +(gross*COMM).toFixed(2);
+  const net = +(gross - comm).toFixed(2);
+  entries.push({
+    date,
+    hybrid: { weight: hw, rate: hr, total: +(hw*hr).toFixed(2) },
+    normal: { weight: nw, rate: nr, total: +(nw*nr).toFixed(2) },
+    gross, comm, net
+  });
+  entries.sort((a,b) => b.date.localeCompare(a.date));
+  persist();
+  ['h-weight','h-rate','n-weight','n-rate'].forEach(id => document.getElementById(id).value='');
+  calcTotals();
+  renderEntries();
+}
+
+function deleteEntry(i) {
+  if (confirm('Delete பண்ணட்டுமா?')) { entries.splice(i,1); persist(); renderEntries(); }
+}
+
+function fmtDate(d) {
+  const dt = new Date(d+'T00:00:00');
+  return dt.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+}
+
+function renderEntries() {
+  const el = document.getElementById('entries-list');
+  if (!entries.length) { el.innerHTML = '<div class="empty">இன்னும் entry இல்ல!</div>'; return; }
+  el.innerHTML = entries.slice(0,15).map((e,i) => `
+    <div class="entry-item">
+      <div class="entry-top">
+        <span class="entry-date">${fmtDate(e.date)}</span>
+        <button class="entry-del" onclick="deleteEntry(${i})">🗑</button>
+      </div>
+      <div class="pill-row">
+        ${e.hybrid.weight ? `<span class="pill pill-h">🟣 ${e.hybrid.weight}kg × ₹${e.hybrid.rate} = ₹${e.hybrid.total}</span>` : ''}
+        ${e.normal.weight ? `<span class="pill pill-n">🟡 ${e.normal.weight}kg × ₹${e.normal.rate} = ₹${e.normal.total}</span>` : ''}
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="entry-gross">Gross ₹${e.gross} · Comm -₹${e.comm}</span>
+        <span class="entry-net">Net ₹${e.net}</span>
+      </div>
+    </div>`).join('');
+}
+
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  btn.classList.add('active');
+  if (name==='analytics') { populateMonths('month-sel'); renderAnalytics(); }
+  if (name==='pdf') { populateMonths('pdf-month-sel'); renderPdfPreview(); }
+}
+
+function populateMonths(selId) {
+  const sel = document.getElementById(selId);
+  const months = [...new Set(entries.map(e=>e.date.slice(0,7)))].sort().reverse();
+  if (!months.length) months.push(new Date().toISOString().slice(0,7));
+  sel.innerHTML = months.map(m=>`<option value="${m}">${monthName(m)}</option>`).join('');
+}
+
+function monthName(m) {
+  const [y,mo]=m.split('-');
+  const n=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return n[+mo-1]+' '+y;
+}
+
+function getMonthData(m) { return entries.filter(e=>e.date.startsWith(m)); }
+
+function renderAnalytics() {
+  const m = document.getElementById('month-sel').value;
+  const data = getMonthData(m);
+  const gross = data.reduce((s,e)=>s+e.gross,0);
+  const comm = data.reduce((s,e)=>s+e.comm,0);
+  const net = data.reduce((s,e)=>s+e.net,0);
+  const hw = data.reduce((s,e)=>s+e.hybrid.weight,0);
+  const nw = data.reduce((s,e)=>s+e.normal.weight,0);
+  const ht = data.reduce((s,e)=>s+e.hybrid.total,0);
+  const nt = data.reduce((s,e)=>s+e.normal.total,0);
+  document.getElementById('s-net').textContent = '₹'+net.toFixed(0);
+  document.getElementById('s-gross-sub').textContent = 'Gross: ₹'+gross.toFixed(0);
+  document.getElementById('s-comm').textContent = '₹'+comm.toFixed(0);
+  document.getElementById('s-hybrid').textContent = '₹'+ht.toFixed(0);
+  document.getElementById('s-hybrid-kg').textContent = hw.toFixed(1)+' kg';
+  document.getElementById('s-normal').textContent = '₹'+nt.toFixed(0);
+  document.getElementById('s-normal-kg').textContent = nw.toFixed(1)+' kg';
+  const ca = document.getElementById('chart-area');
+  if (!data.length) { ca.innerHTML = '<div class="empty">இந்த மாதம் entry இல்ல.</div>'; return; }
+  const maxG = Math.max(...data.map(e=>e.gross));
+  ca.innerHTML = [...data].sort((a,b)=>a.date.localeCompare(b.date)).map(e=>{
+    const hp = maxG ? (e.hybrid.total/maxG*100).toFixed(1) : 0;
+    const np = maxG ? (e.normal.total/maxG*100).toFixed(1) : 0;
+    return `<div class="chart-row">
+      <div class="chart-day">${e.date.slice(8)}</div>
+      <div class="chart-bars">
+        ${e.hybrid.weight ? `<div class="bar-track"><div class="bar-fill bar-h" style="width:${hp}%"></div></div>` : ''}
+        ${e.normal.weight ? `<div class="bar-track"><div class="bar-fill bar-n" style="width:${np}%"></div></div>` : ''}
+      </div>
+      <div class="chart-val">₹${e.net.toFixed(0)}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderPdfPreview() {
+  const m = document.getElementById('pdf-month-sel').value;
+  const data = getMonthData(m);
+  const el = document.getElementById('pdf-preview-area');
+  if (!data.length) { el.innerHTML = '<div class="empty">இந்த மாதம் entry இல்ல.</div>'; return; }
+  const sorted = [...data].sort((a,b)=>a.date.localeCompare(b.date));
+  const totalGross = data.reduce((s,e)=>s+e.gross,0);
+  const totalComm = data.reduce((s,e)=>s+e.comm,0);
+  const totalNet = data.reduce((s,e)=>s+e.net,0);
+  const totalHW = data.reduce((s,e)=>s+e.hybrid.weight,0);
+  const totalNW = data.reduce((s,e)=>s+e.normal.weight,0);
+
+  el.innerHTML = `
+    <div class="pdf-preview">
+      <div class="pdf-preview-title">🌸 அரளி பூ Record — ${monthName(m)}</div>
+      <div style="overflow-x:auto;">
+      <table>
+        <thead><tr>
+          <th>Date</th>
+          <th>🟣 Hybrid (kg)</th>
+          <th>Rate</th>
+          <th>🟡 Normal (kg)</th>
+          <th>Rate</th>
+          <th>Gross</th>
+          <th>Comm</th>
+          <th>Net</th>
+        </tr></thead>
+        <tbody>
+          ${sorted.map(e=>`<tr>
+            <td>${e.date.slice(8)}/${e.date.slice(5,7)}</td>
+            <td>${e.hybrid.weight||'-'}</td>
+            <td>${e.hybrid.weight ? '₹'+e.hybrid.rate : '-'}</td>
+            <td>${e.normal.weight||'-'}</td>
+            <td>${e.normal.weight ? '₹'+e.normal.rate : '-'}</td>
+            <td>₹${e.gross}</td>
+            <td style="color:#DC2626;">₹${e.comm}</td>
+            <td style="color:#1D9E75;font-weight:600;">₹${e.net}</td>
+          </tr>`).join('')}
+        </tbody>
+        <tfoot><tr class="tfoot-row">
+          <td><b>Total</b></td>
+          <td>${totalHW.toFixed(1)} kg</td><td></td>
+          <td>${totalNW.toFixed(1)} kg</td><td></td>
+          <td><b>₹${totalGross.toFixed(2)}</b></td>
+          <td style="color:#DC2626;"><b>₹${totalComm.toFixed(2)}</b></td>
+          <td style="color:#1D9E75;"><b>₹${totalNet.toFixed(2)}</b></td>
+        </tr></tfoot>
+      </table>
+      </div>
+      <div class="commission-note">* 10% market commission கழிச்சு net amount</div>
+    </div>`;
+}
+
+function downloadPdf() {
+  const m = document.getElementById('pdf-month-sel').value;
+  const data = getMonthData(m);
+  if (!data.length) { alert('இந்த மாதம் entry இல்ல!'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+  // Title
+  doc.setFillColor(29, 158, 117);
+  doc.rect(0, 0, 297, 20, 'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(16);
+  doc.setFont('helvetica','bold');
+  doc.text('Arali Poo Record - ' + monthName(m), 14, 13);
+
+  // Summary row
+  const sorted = [...data].sort((a,b)=>a.date.localeCompare(b.date));
+  const totalGross = data.reduce((s,e)=>s+e.gross,0);
+  const totalComm = data.reduce((s,e)=>s+e.comm,0);
+  const totalNet = data.reduce((s,e)=>s+e.net,0);
+  const totalHW = data.reduce((s,e)=>s+e.hybrid.weight,0);
+  const totalNW = data.reduce((s,e)=>s+e.normal.weight,0);
+
+  doc.setTextColor(50,50,50);
+  doc.setFontSize(10);
+  doc.setFont('helvetica','normal');
+  doc.text(`Hybrid: ${totalHW.toFixed(1)} kg   Normal: ${totalNW.toFixed(1)} kg   Gross: Rs.${totalGross.toFixed(2)}   Commission(10%): Rs.${totalComm.toFixed(2)}   Net: Rs.${totalNet.toFixed(2)}`, 14, 28);
+
+  // Table
+  doc.autoTable({
+    startY: 33,
+    head: [['Date','Hybrid (kg)','H.Rate','H.Total','Normal (kg)','N.Rate','N.Total','Gross','Comm(10%)','Net Amount']],
+    body: sorted.map(e => [
+      fmtDate(e.date),
+      e.hybrid.weight || '-',
+      e.hybrid.weight ? 'Rs.'+e.hybrid.rate : '-',
+      e.hybrid.weight ? 'Rs.'+e.hybrid.total : '-',
+      e.normal.weight || '-',
+      e.normal.weight ? 'Rs.'+e.normal.rate : '-',
+      e.normal.weight ? 'Rs.'+e.normal.total : '-',
+      'Rs.'+e.gross,
+      'Rs.'+e.comm,
+      'Rs.'+e.net
+    ]),
+    foot: [['TOTAL', totalHW.toFixed(1)+' kg','','', totalNW.toFixed(1)+' kg','','', 'Rs.'+totalGross.toFixed(2), 'Rs.'+totalComm.toFixed(2), 'Rs.'+totalNet.toFixed(2)]],
+    headStyles: { fillColor: [29,158,117], textColor: 255, fontStyle: 'bold', fontSize: 9 },
+    footStyles: { fillColor: [234,247,242], textColor: [15,110,86], fontStyle: 'bold', fontSize: 9 },
+    bodyStyles: { fontSize: 9 },
+    alternateRowStyles: { fillColor: [249,250,251] },
+    columnStyles: { 9: { textColor: [29,158,117], fontStyle: 'bold' }, 8: { textColor: [220,38,38] } },
+    margin: { left: 14, right: 14 }
+  });
+
+  doc.save('arali-poo-' + m + '.pdf');
+}
+
+renderEntries();
+
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js'); }
+</script>
+</body>
+</html>
